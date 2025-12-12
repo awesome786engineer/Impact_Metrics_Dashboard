@@ -10,9 +10,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import os
 
-# 1. SETUP & CONFIG
-st.set_page_config(layout="wide", page_title="Air Quality Dashboard", page_icon="🏭")
 
+st.set_page_config(layout="wide", page_title="Air Quality Dashboard", page_icon="🏭")
 
 st.markdown("""
 <style>
@@ -22,11 +21,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 2. DATA LOADING (Cached for Speed)
 @st.cache_data
 def load_data():
     base_path = ""
     
+ 
     def get_path(filename):
         return os.path.join(base_path, filename)  
     try:
@@ -37,8 +36,10 @@ def load_data():
         
         s_hour = pd.read_csv(base_path + 'station_hour.zip', parse_dates=['Datetime'])
         
+        
         stations = pd.read_csv(base_path + 'stations.csv')
         
+
         s_day = pd.merge(s_day, stations[['StationId', 'StationName', 'City', 'Status']], on='StationId', how='left')
         s_hour = pd.merge(s_hour, stations[['StationId', 'StationName', 'City']], on='StationId', how='left')
         
@@ -49,11 +50,11 @@ def load_data():
 
 city_day, station_day, station_hour, stations = load_data()
 
-# 3. DASHBOARD LAYOUT
+
 
 if city_day is not None:
     
-    # Sidebar
+    
     st.sidebar.title("🎛️ Controls")
     city_list = sorted(city_day['City'].dropna().unique())
     selected_city = st.sidebar.selectbox("Select City", city_list, index=city_list.index('Delhi') if 'Delhi' in city_list else 0)
@@ -64,7 +65,7 @@ if city_day is not None:
     st.title("🏭 India Air Quality Analysis")
     st.markdown("### A Data-Driven Approach to Pollution Hotspots, Trends, and Health Impact")
 
-    # TABS
+  
     tab_health, tab_trends, tab_cluster, tab_audit = st.tabs([
         "🚬 Public Health Impact", 
         "📈 Hotspots & Trends", 
@@ -72,7 +73,7 @@ if city_day is not None:
         "🛠️ Sensor Audit"
     ])
 
-    # TAB 1: PUBLIC HEALTH IMPACT
+   
     with tab_health:
         st.header("Public Health & Policy Impact")
         
@@ -82,7 +83,7 @@ if city_day is not None:
             st.subheader("🚬 Cigarette Equivalence")
             st.info("Scientific Rule of Thumb: 22 µg/m³ of PM2.5 ≈ 1 Cigarette smoked.")
             
-            # Compute
+          
             stats = city_day.groupby('City')['PM2.5'].agg(['mean']).reset_index()
             stats['Cigarettes_Per_Day'] = stats['mean'] / 22
             stats = stats.sort_values(by='Cigarettes_Per_Day', ascending=False).head(15)
@@ -105,12 +106,12 @@ if city_day is not None:
                                   color_continuous_scale='YlOrRd',
                                   title="Risk Matrix (Size = Volatility)")
             
-            # Add Quadrant Lines
+           
             fig_risk.add_hline(y=300, line_dash="dot", annotation_text="Severe Spikes")
             fig_risk.add_vline(x=150, line_dash="dot", annotation_text="Unhealthy Avg")
             st.plotly_chart(fig_risk, use_container_width=True)
 
-        # YoY Progress
+       
         st.subheader("📉 City Progress (2016 vs 2019)")
         df_prog = city_day.copy()
         df_prog['Year'] = df_prog['Date'].dt.year
@@ -118,7 +119,7 @@ if city_day is not None:
         df_trend['Change_Pct'] = ((df_trend[2019] - df_trend[2016]) / df_trend[2016]) * 100
         df_trend = df_trend.dropna().sort_values(by='Change_Pct')
         
-        # Color logic
+       
         colors = ['green' if x < 0 else 'red' for x in df_trend['Change_Pct']]
         
         fig_prog = go.Figure()
@@ -126,7 +127,7 @@ if city_day is not None:
         fig_prog.update_layout(title="% Change in PM2.5 (Negative is Good)", xaxis_tickangle=-90)
         st.plotly_chart(fig_prog, use_container_width=True)
 
-    # TAB 2: HOTSPOTS & TRENDS (Deliverable 1)
+   
     with tab_trends:
         col_t1, col_t2 = st.columns([2, 1])
         
@@ -155,7 +156,7 @@ if city_day is not None:
 
         st.divider()
         
-        # Diwali & Rankings
+        
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("🎆 Diwali Impact")
@@ -182,7 +183,6 @@ if city_day is not None:
             fig_rk = px.bar(rank, y='City', x=selected_pollutant, orientation='h', color=selected_pollutant, title=f"Top 10 Cities in {rank_year}")
             st.plotly_chart(fig_rk, use_container_width=True)
 
-    # TAB 3: CORRELATIONS & CLUSTERS (Deliverable 2)
     with tab_cluster:
         st.header("Advanced Analytics")
         
@@ -204,18 +204,18 @@ if city_day is not None:
             st.subheader("🧩 City Clustering (PCA)")
             n_k = st.slider("Number of Clusters", 2, 6, 4)
             
-            # Prepare Data
+           
             df_pivot = city_day.groupby('City')[pollutant_cols].mean()
             df_pivot = df_pivot.fillna(df_pivot.mean())
             
-            # ML Pipeline
+            
             scaler = StandardScaler()
             X = scaler.fit_transform(df_pivot)
             kmeans = KMeans(n_clusters=n_k, random_state=42)
             labels = kmeans.fit_predict(X)
             df_pivot['Cluster'] = labels.astype(str)
             
-            # PCA
+           
             pca = PCA(n_components=2)
             pcs = pca.fit_transform(X)
             df_pivot['PC1'] = pcs[:, 0]
@@ -230,9 +230,7 @@ if city_day is not None:
             st.markdown("**Cluster Profiles (Avg Values):**")
             st.dataframe(df_pivot.groupby('Cluster')[pollutant_cols].mean().style.background_gradient(cmap='Greens'))
 
-    
-    # TAB 4: STATION AUDIT (Deliverable 3)
-
+  
     with tab_audit:
         st.header("🛠️ Data Quality & Sensor Audit")
         
@@ -260,7 +258,7 @@ if city_day is not None:
             
             if st.button("Run Hardware Scan (Heavy Compute)"):
                 with st.spinner("Scanning hourly data..."):
-                    # Optimization: Filter for current city to save time
+                
                     df_scan = station_hour[station_hour['City'] == selected_city].sort_values(['StationId', 'Datetime'])
                     frozen_list = []
                     
